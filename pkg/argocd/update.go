@@ -130,6 +130,14 @@ func (wbc *WriteBackConfig) RequiresLocking() bool {
 		return false
 	}
 }
+func GetParameterValue(app v1alpha1.Application, name string, defaultValue string) string {
+	for _, p := range app.Spec.Source.Helm.Parameters {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return defaultValue
+}
 
 // UpdateApplication update all images of a single application. Will run in a goroutine.
 func UpdateApplication(updateConf *UpdateConfiguration, state *SyncIterationState) ImageUpdaterResult {
@@ -164,6 +172,12 @@ func UpdateApplication(updateConf *UpdateConfiguration, state *SyncIterationStat
 		if updateableImage.ImageTag == nil {
 			updateableImage.ImageTag = tag.NewImageTag("", time.Unix(0, 0), "")
 		}
+		targetTagName := applicationImage.GetParameterHelmImageTag(updateConf.UpdateApp.Application.Annotations)
+		if targetTagName == "" {
+			targetTagName = common.DefaultHelmImageTag
+		}
+		targetTag := GetParameterValue(updateConf.UpdateApp.Application, targetTagName, "")
+		updateableImage.ImageTag.TagName = targetTag
 
 		result.NumImagesConsidered += 1
 
